@@ -1,7 +1,7 @@
 import pygame
 import random
 pygame.init()
-SPEED = 6
+SPEED = 10
 class Platform:
     dy = 0
     height = 200
@@ -51,33 +51,54 @@ window = pygame.display.set_mode((800,800))
 
 playerPlatform = Platform(100,300,"Player")
 AIPlatform = Platform(680,300, "AI")
+AIPlatform2 = Platform(100,300, "AI")
 ballY = 400
 ballX = 300
 ballDY = SPEED
 ballDX = SPEED
+mode = "AI"
+BALL_ACCELERATION = 0.1
 clock = pygame.time.Clock()
 while True:
+    
     ballX += ballDX
     ballY += ballDY
-    
+    if SPEED > 10:
+        SPEED = 8
     if ballY <= 0:
         ballDY = SPEED
+        SPEED += BALL_ACCELERATION
     if ballY+30>=800:
         ballDY = -SPEED
-    if collisionCheck(ballX,ballY, playerPlatform) == True:
-        ballDX = SPEED
+        SPEED += BALL_ACCELERATION
+    if mode == "Player":
+        if collisionCheck(ballX,ballY, playerPlatform) == True:
+            ballDX = SPEED
+            SPEED += BALL_ACCELERATION
     if collisionCheck(ballX,ballY, AIPlatform) == True:
         ballDX = -SPEED
+        SPEED += BALL_ACCELERATION
+    if mode == "AI":
+        if collisionCheck(ballX,ballY, AIPlatform2) == True:
+            ballDX = SPEED
+            print("Gottem")
+            SPEED += BALL_ACCELERATION
+    
     
     window.fill("Black")
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             exit()
     keys = pygame.key.get_pressed()
-    playerPlatform.update(0,keys)
-    playerPlatform.draw(window)
+    if mode == "Player":
+        playerPlatform.update(0,keys)
+        playerPlatform.draw(window)
     AIPlatform.update(ballY, 0)
     AIPlatform.draw(window)
+    if mode == "AI":
+        AIPlatform2.update(ballY, 0)
+        AIPlatform2.draw(window)
+    
     pygame.draw.circle(window,pygame.Color("White"), (ballX+15, ballY+15), 15)
     pygame.display.update()
     clock.tick(60)
