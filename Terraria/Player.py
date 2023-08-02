@@ -1,18 +1,34 @@
 import pygame
 import math
+import Item
+from Globals import *
+print(Globals.items_dict)
 BLOCK_SIZE = 32
 class Player:
     img = pygame.image.load("Textures\\Player.png")
     img = pygame.transform.scale(img, (BLOCK_SIZE,BLOCK_SIZE))
+    img_copy = img.copy()
+    img_with_flip = pygame.transform.flip(img_copy, True, False)
+    img_with_flip = pygame.transform.scale(img_with_flip, (BLOCK_SIZE, BLOCK_SIZE))
+    current_img = img
     accuracy = 1
     ddy = 0.1
     dx = 0
     dy = 5
+    reach = 15
+    inventory = []
     def __init__(self,x,y) -> None:
         self.x = x
         self.y = y
     
     def update(self,keys,world, cameraX, cameraY):
+        i = 0
+        self.sortInv()
+        while i < (len(self.inventory)):
+            if self.inventory[i][1] <= 0:
+                del self.inventory[i]
+                i -=1
+            i +=1
         self.dx = 0
         self.dy += self.ddy
         if self.dy > -0.3 and self.dy < 1:
@@ -54,33 +70,74 @@ class Player:
             """
             return [cameraX,cameraY]
     
+    
+    def sortInv(self):
+        self.inventory.sort(reverse=True)
+    
+    
+    def addToInventory(self,itemInfo):
+        leftToGive = itemInfo[1]
+        flag = 1
+        for item in self.inventory:
+            if item[0] == itemInfo[0]:
+                flag = 0
+                if item[1] != itemInfo[0].maxStack:
+                    if leftToGive + item[1] <= itemInfo[0].maxStack:
+                        item[1] += leftToGive
+                        return
+                    else:
+                        item[1] += itemInfo[0].maxStack-item[1]
+                        leftToGive -= itemInfo[0].maxStack-item[1]
+        if leftToGive != 0:
+            while leftToGive>0:
+                if itemInfo[0].maxStack == leftToGive:
+                    self.inventory.append([itemInfo[0], leftToGive])
+                    leftToGive = 0
+                    break
+                self.inventory.append([itemInfo[0], leftToGive%itemInfo[0].maxStack])
+                leftToGive -= leftToGive%itemInfo[0].maxStack
+    
     def build(self, mouseState, mousePos, world, Camera_X, Camera_Y, l):
         if mouseState[0]:
             x = int(int(mousePos[0]+Camera_X*BLOCK_SIZE)//BLOCK_SIZE)
             y = int(int(mousePos[1]+Camera_Y*BLOCK_SIZE)//BLOCK_SIZE)
+            if abs(x-self.x) + abs(y-self.y) > self.reach:
+                return [world,l]
             try:
                 if world[y][x] == 0:
-                    world[y][x] = 4
-                    l.append([x,y])
+                    for item in self.inventory:
+                        if item[0] == Item.WoodPlatform and item[1] > 0:
+                            flag = 0
+                            world[y][x] = 4
+                            l.append([x,y])
+                            item[1] -=1
+                        break
             except:
                 print("Tried to build out of bounds")
         if mouseState[2]:
             x = int(int(mousePos[0]+Camera_X*BLOCK_SIZE)//BLOCK_SIZE)
             y = int(int(mousePos[1]+Camera_Y*BLOCK_SIZE)//BLOCK_SIZE)
+            if abs(x-self.x) + abs(y-self.y) > self.reach:
+                return [world,l]
             try:
-                if world[y][x] == 4:
-                    world[y][x] = 0
-                    print("Deleted")
-                    print(len(l))
-                    for i in range(len(l)):
-                        if l[i] == [x,y]:
-                            del l[i]
-                            print(len(l))
-                            break
+                self.addToInventory([Globals.items_dict[world[y][x]], 1])
+                world[y][x] = 0
+                print("Deleted")
+                print(len(l))
+                for i in range(len(l)):
+                    if l[i] == [x,y]:
+                        del l[i]
+                        print(len(l))
+                        break
             except:
                 print("Tried to delete out of bounds")
         return [world,l]
             
     
     def draw(self,window : pygame.surface, CAMERA_X, CAMERA_Y):
-        window.blit(self.img, pygame.Rect((self.x-CAMERA_X)*BLOCK_SIZE,(self.y-CAMERA_Y)*BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE))
+        
+        if self.dx < 0:
+            self.current_img = self.img_with_flip
+        elif self.dx > 0:
+            self.current_img = self.img
+        window.blit(self.current_img, pygame.Rect((self.x-CAMERA_X)*BLOCK_SIZE,(self.y-CAMERA_Y)*BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE))

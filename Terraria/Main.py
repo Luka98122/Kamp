@@ -5,16 +5,18 @@ import Button
 import json
 import time
 
+from Item import *
+from Globals import *
 pygame.font.init()
 pygame.init()
 
 
 my_font = pygame.font.SysFont('Comic Sans MS', 20)
-GAME_WIDTH = 260
+
+GAME_WIDTH = 500
 GAME_HEIGHT = 50
 CameraX = 0
 CameraY = 0
-BLOCK_SIZE = 32
 
 
 # Blocks
@@ -26,17 +28,7 @@ WOOD_PLATFORM = 4
 
 
 buttons = [Button.Button(pygame.Rect(0,150,150,75), "Reset builds", 32)]
-colors_dict = {
-    AIR : pygame.Color("Cyan"),
-    DIRT : pygame.Color("Brown"),
-    GRASS : pygame.Color("chartreuse2"),
-    STONE : pygame.Color("Grey"),
-    WOOD_PLATFORM : None 
-}
 
-img_dict = {
-    WOOD_PLATFORM :  pygame.transform.scale(pygame.image.load("Textures\\Wood_Platform.png"), (BLOCK_SIZE, BLOCK_SIZE/2))
-}
 
 
 def blur_generate_world(blurAmount):
@@ -92,15 +84,15 @@ def draw_world(window,world): # Draw the world
     counter = 0
     for i in range(GAME_HEIGHT):
         for j in range(GAME_WIDTH):
-            if j-CameraX >-1 and player.x - (j) < 16 and j-player.x < 36:
+            if j-CameraX >-1 and player.x - (j) < 21 and j-player.x < 21:
                 if counter != 0:
                     counter -= 1
                     continue
-                color = colors_dict[world[i][j]]
+                color = Globals.colors_dict[world[i][j]]
                 if color == None:
                     color = pygame.Color("Yellow")
-                    img = img_dict[WOOD_PLATFORM]
-                    window.blit(img_dict[WOOD_PLATFORM], pygame.Rect((j-CameraX)*BLOCK_SIZE,(i-CameraY)*BLOCK_SIZE,BLOCK_SIZE,20))
+                    img = Globals.img_dict[WOOD_PLATFORM]
+                    window.blit(Globals.img_dict[WOOD_PLATFORM], pygame.Rect((j-CameraX)*Globals.BLOCK_SIZE,(i-CameraY)*Globals.BLOCK_SIZE,Globals.BLOCK_SIZE,20))
                     continue
                     #print(f"Drew at {(j,i)}, player is at {(player.x,player.y)}")
                     """""
@@ -110,19 +102,19 @@ def draw_world(window,world): # Draw the world
                             counter +=1
                         else:
                             break
-                    img = pygame.transform.scale(img_dict[world[i][j]], (BLOCK_SIZE*counter*8,BLOCK_SIZE*8))
-                    window.blit(img, pygame.Rect(j*BLOCK_SIZE, i*BLOCK_SIZE, BLOCK_SIZE*counter*8, BLOCK_SIZE*8))
+                    img = pygame.transform.scale(img_dict[world[i][j]], (Globals.BLOCK_SIZE*counter*8,Globals.BLOCK_SIZE*8))
+                    window.blit(img, pygame.Rect(j*Globals.BLOCK_SIZE, i*Globals.BLOCK_SIZE, Globals.BLOCK_SIZE*counter*8, Globals.BLOCK_SIZE*8))
                     print(f"Drew at {(j,i)}, player is at {(player.x,player.y)}")
                     continue
                 """
                 if j-CameraX >-1 and abs(player.x - (j)) < 60:
-                    pygame.draw.rect(window, color, pygame.Rect((j-CameraX)*BLOCK_SIZE,(i-CameraY)*BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE))
+                    pygame.draw.rect(window, color, pygame.Rect((j-CameraX)*Globals.BLOCK_SIZE,(i-CameraY)*Globals.BLOCK_SIZE,Globals.BLOCK_SIZE,Globals.BLOCK_SIZE))
                     
-                    #pygame.draw.rect(window, pygame.Color("Black"), pygame.Rect((j-CameraX)*BLOCK_SIZE,(i-CameraY)*BLOCK_SIZE,BLOCK_SIZE,BLOCK_SIZE),1)
+                    #pygame.draw.rect(window, pygame.Color("Black"), pygame.Rect((j-CameraX)*Globals.BLOCK_SIZE,(i-CameraY)*Globals.BLOCK_SIZE,Globals.BLOCK_SIZE,Globals.BLOCK_SIZE),1)
 
 window = pygame.display.set_mode((1280,720))
 clock = pygame.time.Clock()
-world = blur_generate_world(4)
+world = blur_generate_world(6)
 
 
 def applyGrassLayer(world):
@@ -172,8 +164,17 @@ def loadGame(saveName):
     print("DONE")
     return [decoded_dict["world"], Player.Player(decoded_dict["player"]["x"], decoded_dict["player"]["y"]), decoded_dict["listOfPlatforms"], decoded_dict["CAMERAX"], decoded_dict["CAMERAY"]]
 
+def drawHUD(window,drawInventory, player : Player):
+    if drawInventory:
+        window.blit(INVENTORY_IMG,(0,0))
+        for i in range(len(player.inventory)):
+            window.blit(player.inventory[i][0].img, (47.5*i+25, 30))
+            my_font2 = pygame.font.SysFont('Comic Sans MS', 15)
+            text_surface = my_font2.render(f"{player.inventory[i][1]}", True, (0, 0, 0))
+            window.blit(text_surface, (47.5*i+40, 49))
 
-player = Player.Player(15,5)
+
+player = Player.Player(20,5)
 player.accuracy = 1
 debug = False
 holdingDebug = False
@@ -184,6 +185,11 @@ loadButton = Button.Button(pygame.Rect(543,299,240,50),"INVIS", 2)
 MAIN_MENU_IMG = pygame.image.load("Textures\\MainScreen.jpg")
 exitButton = Button.Button(pygame.Rect(612,525,60,30), "INVIS", 2)
 
+INVENTORY_IMG = pygame.image.load("Textures\\Inventory.png")
+INVENTORY_IMG.set_alpha(200)
+holdingI = False
+inventoryOpen = False
+player.addToInventory([WoodPlatform, 100])
 #MAIN_MENU_IMG = pygame.transform.smoothscale(MAIN_MENU_IMG, (800,800))
 while True:
     window.blit(MAIN_MENU_IMG, (0,0))
@@ -223,19 +229,33 @@ while True:
             applyGrassLayer(world)
             draw_world(window,world)
             player.draw(window, CameraX, CameraY)
-            ##img = pygame.transform.scale(img_dict[WOOD_PLATFORM], (BLOCK_SIZE*5,BLOCK_SIZE))
-            #window.blit(img, pygame.Rect(0*BLOCK_SIZE, 5*BLOCK_SIZE, BLOCK_SIZE*5, BLOCK_SIZE))
+            ##img = pygame.transform.scale(img_dict[WOOD_PLATFORM], (Globals.BLOCK_SIZE*5,Globals.BLOCK_SIZE))
+            #window.blit(img, pygame.Rect(0*Globals.BLOCK_SIZE, 5*Globals.BLOCK_SIZE, Globals.BLOCK_SIZE*5, Globals.BLOCK_SIZE))
             
             #Update Display
             if keys[pygame.K_F3]:
                 if holdingDebug == False:
                     if debug == False:
                         debug = True
+                        player.addToInventory([WoodPlatform, 100])
                     else:
                         debug = False
                     holdingDebug = True
             else:
                 holdingDebug = False
+            
+            if keys[pygame.K_i]:
+                if holdingI == False:
+                    if inventoryOpen == False:
+                        inventoryOpen = True
+                    else:
+                        inventoryOpen = False
+                    holdingI = True
+            else:
+                holdingI = False
+            
+            drawHUD(window,inventoryOpen, player)
+            
             if keys[pygame.K_ESCAPE]:
                 break
             if debug:
