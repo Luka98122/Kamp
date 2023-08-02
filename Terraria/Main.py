@@ -4,7 +4,7 @@ import Player
 import Button
 import json
 import time
-
+import socket
 from Item import *
 from Globals import *
 pygame.font.init()
@@ -15,11 +15,11 @@ my_font = pygame.font.SysFont('Comic Sans MS', 20)
 
 GAME_WIDTH = 500
 GAME_HEIGHT = 50
-CameraX = 0
+CameraX = 0 # Offset za kameru
 CameraY = 0
 
 
-# Blocks
+# Blocks - Svi blokovi imaju jednu vrednost kojom su zabelezeni u matrici
 AIR = 0
 DIRT = 1
 GRASS = 2
@@ -27,11 +27,12 @@ STONE = 3
 WOOD_PLATFORM = 4
 
 
-buttons = [Button.Button(pygame.Rect(0,150,150,75), "Reset builds", 32)]
+buttons = [Button.Button(pygame.Rect(0,150,150,75), "Reset builds", 32)] # Ovo je samo dugmo za resetovanje buildova u debug menuju
 
 
 
-def blur_generate_world(blurAmount):
+def blur_generate_world(blurAmount): # Trenutno (2.8.2023) koristim ovo da generisem svet. Uzimam prosecnu vrednost random brojeva da dobijem vise smooth teren.
+    # BlurAmount je od kolko brojeva da uzmem prosek. Sto je veci, to je ravnije
     world = generate_world()
     listToBlur = []
     for i in range(GAME_WIDTH+blurAmount):
@@ -44,7 +45,7 @@ def blur_generate_world(blurAmount):
     return world
 
 
-def smart_generate_world():
+def smart_generate_world(): # Stari metod generisanja sveta
     world = generate_world() # Generate flat world, that hills will be added to
     num_of_hills = random.randint(int(GAME_WIDTH/10), int(GAME_WIDTH/5)) # Number of hills to be generated
     for i in range(num_of_hills):
@@ -62,7 +63,7 @@ def smart_generate_world():
                        world[29-j+1][z] = DIRT       
     return world
 
-def generate_world(): # Generate flat world split into layers
+def generate_world(): # Generate flat world split into layers ( Pravi svet od par slojeva, na koje druge dve generate world funkcije mogu da nagradjuju)
     world = []
     for i in range(GAME_HEIGHT):
         world.append([])
@@ -80,10 +81,10 @@ def generate_world(): # Generate flat world split into layers
     return world
 
 
-def draw_world(window,world): # Draw the world
+def draw_world(window,world): # Draw the world - crta svet po ili boji koji taj blok ima, ili po teksturi. ( Globals.colors_dict i Globals.img_dict)
     counter = 0
     for i in range(GAME_HEIGHT):
-        for j in range(GAME_WIDTH):
+        for j in range(GAME_WIDTH): 
             if j-CameraX >-1 and player.x - (j) < 21 and j-player.x < 21:
                 if counter != 0:
                     counter -= 1
@@ -112,12 +113,12 @@ def draw_world(window,world): # Draw the world
                     
                     #pygame.draw.rect(window, pygame.Color("Black"), pygame.Rect((j-CameraX)*Globals.BLOCK_SIZE,(i-CameraY)*Globals.BLOCK_SIZE,Globals.BLOCK_SIZE,Globals.BLOCK_SIZE),1)
 
-window = pygame.display.set_mode((1280,720))
+window = pygame.display.set_mode((1280,720)) # Incijalizacija prozora
 clock = pygame.time.Clock()
 world = blur_generate_world(6)
 
 
-def applyGrassLayer(world):
+def applyGrassLayer(world): # Zamenjuje sve top blokove dirta sa travom
     for i in range(GAME_WIDTH):
         for j in range(1,GAME_HEIGHT):
             if i-CameraX >-1 and abs(player.x - (i)) < 60:

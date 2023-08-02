@@ -23,7 +23,6 @@ class Player:
     
     def update(self,keys,world, cameraX, cameraY):
         i = 0
-        self.sortInv()
         while i < (len(self.inventory)):
             if self.inventory[i][1] <= 0:
                 del self.inventory[i]
@@ -86,8 +85,9 @@ class Player:
                         item[1] += leftToGive
                         return
                     else:
+                        ogHad = item[1]
                         item[1] += itemInfo[0].maxStack-item[1]
-                        leftToGive -= itemInfo[0].maxStack-item[1]
+                        leftToGive -= itemInfo[0].maxStack-ogHad
         if leftToGive != 0:
             while leftToGive>0:
                 if itemInfo[0].maxStack == leftToGive:
@@ -96,6 +96,7 @@ class Player:
                     break
                 self.inventory.append([itemInfo[0], leftToGive%itemInfo[0].maxStack])
                 leftToGive -= leftToGive%itemInfo[0].maxStack
+        self.sortInv()
     
     def build(self, mouseState, mousePos, world, Camera_X, Camera_Y, l):
         if mouseState[0]:
@@ -105,7 +106,8 @@ class Player:
                 return [world,l]
             try:
                 if world[y][x] == 0:
-                    for item in self.inventory:
+                    for i in range(0,len(self.inventory)+1):
+                        item = self.inventory[len(self.inventory)-(i+1)]
                         if item[0] == Item.WoodPlatform and item[1] > 0:
                             flag = 0
                             world[y][x] = 4
@@ -121,6 +123,7 @@ class Player:
                 return [world,l]
             try:
                 self.addToInventory([Globals.items_dict[world[y][x]], 1])
+                self.sortInv()
                 world[y][x] = 0
                 print("Deleted")
                 print(len(l))
