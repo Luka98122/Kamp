@@ -7,9 +7,12 @@ import time
 import socket
 from Item import *
 from Globals import *
+import threading
+
+
+
 pygame.font.init()
 pygame.init()
-
 
 my_font = pygame.font.SysFont('Comic Sans MS', 20)
 
@@ -36,7 +39,7 @@ def blur_generate_world(blurAmount): # Trenutno (2.8.2023) koristim ovo da gener
     world = generate_world()
     listToBlur = []
     for i in range(GAME_WIDTH+blurAmount):
-        listToBlur.append(random.randint(0,30))
+        listToBlur.append(random.randint(0,10))
     
     for i in range(GAME_WIDTH):
         height = int((listToBlur[i]+listToBlur[i+1]+listToBlur[i+2])/blurAmount)
@@ -113,9 +116,9 @@ def draw_world(window,world): # Draw the world - crta svet po ili boji koji taj 
                     
                     #pygame.draw.rect(window, pygame.Color("Black"), pygame.Rect((j-CameraX)*Globals.BLOCK_SIZE,(i-CameraY)*Globals.BLOCK_SIZE,Globals.BLOCK_SIZE,Globals.BLOCK_SIZE),1)
 
-window = pygame.display.set_mode((1280,720)) # Incijalizacija prozora
+#window = pygame.display.set_mode((1280,720)) # Incijalizacija prozora
 clock = pygame.time.Clock()
-world = blur_generate_world(15)
+world = blur_generate_world(6)
 
 
 def applyGrassLayer(world): # Zamenjuje sve top blokove dirta sa travom
@@ -175,8 +178,8 @@ def drawHUD(window,drawInventory, player : Player):
             window.blit(text_surface, (47.5*i+40, 49))
 
 
-player = Player.Player(20,5)
-player.accuracy = 1
+#player = Player.Player(20,5)
+#player.accuracy = 1
 debug = False
 holdingDebug = False
 startButton = Button.Button(pygame.Rect(542,239,240,50),"INVIS", 2)
@@ -190,76 +193,52 @@ INVENTORY_IMG = pygame.image.load("Textures\\Inventory.png")
 INVENTORY_IMG.set_alpha(200)
 holdingI = False
 inventoryOpen = False
-player.addToInventory([WoodPlatform, 100])
+#player.addToInventory([WoodPlatform, 100])
 #MAIN_MENU_IMG = pygame.transform.smoothscale(MAIN_MENU_IMG, (800,800))
+
+world = generate_world()
+world = blur_generate_world(15)
+
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def listenForNewPlayers():
+    port = 12095
+    s.bind(('', port))
+    print("Binded")
+    while True:
+        try:
+            print("Listening")
+            s.listen(10)
+            client, addr = s.accept()
+            print("Connection established")
+            usr = client.recvfrom(50000)[0].decode()
+            print("Info recievedf")
+            player1 = Player.Player(0,2)
+            players.append([client, addr, player1, usr])
+            buildDict = {"x" : player1.x,"y" : player1.y, "dx" : player1.dx, "dy" : player1.dy, "cameraX" : 0, "cameraY": 0}
+            time.sleep(1)
+            for person in players:
+                person[0].send(json.dumps({"newPlayer" : [addr, buildDict, usr], "world" : world}).encode() )
+                print("Sent")
+        except Exception as e:
+            print(e)
+            pass
+players = []
+t1 = threading.Thread(target=listenForNewPlayers)
+t1.start()
+
+
+
 while True:
-    window.blit(MAIN_MENU_IMG, (0,0))
-    events = pygame.event.get()
-    pygame.display.update()
-    
-    mouseState = pygame.mouse.get_pressed()
-    mousePos = pygame.mouse.get_pos()
-    if exitButton.update(mouseState, mousePos) == True:
-        saveGame("Test", world, player, listOfPlatforms, CameraX, CameraY)
-        exit()
-    if loadButton.update(mouseState,mousePos) == True:
-        world, player, listOfPlatforms, CameraX, cameraY = loadGame("Test")
-    if startButton.update(mouseState, mousePos) == True:
-        wasHoldingDown = True
-        window = pygame.display.set_mode((1280,720))
-        while True: # Main game loop
-            window.fill("Cyan")
-            events = pygame.event.get()
-            for event in events:
-                if event.type == pygame.QUIT:
-                    exit()
-            
-            keys = pygame.key.get_pressed()
-            
-            
-            CameraX,CameraY = player.update(keys,world, CameraX, CameraY)
-            
-            mousePos = pygame.mouse.get_pos()
-            mouseState = pygame.mouse.get_pressed()
-            if not wasHoldingDown:
-                l = player.build(mouseState,mousePos, world, CameraX, CameraY, listOfPlatforms)
-                world = l[0]
-                listOfPlatforms = l[1]
-            if pygame.mouse.get_pressed()[0] == False:
-                wasHoldingDown = False
-            applyGrassLayer(world)
-            draw_world(window,world)
-            player.draw(window, CameraX, CameraY)
-            ##img = pygame.transform.scale(img_dict[WOOD_PLATFORM], (Globals.BLOCK_SIZE*5,Globals.BLOCK_SIZE))
-            #window.blit(img, pygame.Rect(0*Globals.BLOCK_SIZE, 5*Globals.BLOCK_SIZE, Globals.BLOCK_SIZE*5, Globals.BLOCK_SIZE))
-            
-            #Update Display
-            if keys[pygame.K_F3]:
-                if holdingDebug == False:
-                    if debug == False:
-                        debug = True
-                        player.addToInventory([WoodPlatform, 100])
-                    else:
-                        debug = False
-                    holdingDebug = True
-            else:
-                holdingDebug = False
-            
-            if keys[pygame.K_i]:
-                if holdingI == False:
-                    if inventoryOpen == False:
-                        inventoryOpen = True
-                    else:
-                        inventoryOpen = False
-                    holdingI = True
-            else:
-                holdingI = False
-            
-            drawHUD(window,inventoryOpen, player)
-            
-            if keys[pygame.K_ESCAPE]:
-                break
-            if debug:
-                listOfPlatforms = debugMode(window,player,listOfPlatforms, clock, pygame.mouse.get_pressed(), pygame.mouse.get_pos())
-            pygame.display.update()
-            clock.tick(60)
+    for play in players:
+        a = play[0].recv(10000).decode()
+        res = json.loads(a)
+        play[2].update(res["keys"], world, CameraX, CameraY)
+        play[2].build(res["mouse"], res["mouseCoords"], world, CameraX, CameraY)
+        json_object = json.dumps({"x" : play[2].x,"y" : play[2].y, "dx" : play[2].dx, "dx" : play[2].dy, "cameraX" : CameraX, "cameraY": CameraY})
+        play[0].send()
+    for play in players:
+        continue
+        dictic = []
+        for i in range(len(players)):
+            dictic[players[i][3]] = players[i]
+        play[0].send(json.dumps(dictic).encosde())
