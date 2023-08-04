@@ -16,6 +16,7 @@ class Player:
     dx = 0
     dy = 5
     reach = 15
+    name = "Lol"
     inventory = []
     def __init__(self,x,y) -> None:
         self.x = x
